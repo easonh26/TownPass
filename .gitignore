@@ -12,11 +12,12 @@
 .swiftpm/
 migrate_working_dir/
 
-# Team raw data (CSVs and intermediate DBs): never commit.
-data/
+# Team raw data (repo-root only): never commit. Anchored with / so it does
+# NOT match senior-card/api/data/venues.db, which the Docker build needs.
+/data/
 
-# Design-draft HTML + source DB copies: kept locally only, never commit.
-ref/
+# Design-draft HTML + source DB copies (repo-root only): kept locally only.
+/ref/
 
 # IntelliJ related
 *.iml
