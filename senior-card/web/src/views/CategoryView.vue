@@ -5,6 +5,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
       </button>
       <h1>地點分類</h1>
+      <span class="topbar-spacer" aria-hidden="true"></span>
     </header>
 
     <main class="content">
@@ -14,18 +15,32 @@
         <button type="button" class="retry-btn" @click="retry">再試一次</button>
       </div>
 
-      <div v-else class="grid" role="group" aria-label="場所類別">
+      <template v-else>
         <button
-          v-for="(c, i) in categories"
-          :key="c.name"
           type="button"
-          class="category-btn"
-          @click="pick(c.name)"
+          class="voice-toggle"
+          :class="{ on: store.voiceOn }"
+          :aria-pressed="store.voiceOn"
+          aria-label="語音朗讀開關"
+          @click="toggleVoice"
         >
-          <span class="icon-circle" aria-hidden="true" v-html="c.icon"></span>
-          <span class="category-name">{{ i + 1 }}.{{ c.name }}</span>
+          <span class="toggle-icon" aria-hidden="true" v-html="store.voiceOn ? iconVoiceOn : iconVoiceOff"></span>
+          <span class="toggle-label">語音朗讀：{{ store.voiceOn ? '開' : '關' }}</span>
         </button>
-      </div>
+
+        <div class="grid" role="group" aria-label="場所類別">
+          <button
+            v-for="(c, i) in categories"
+            :key="c.name"
+            type="button"
+            class="category-btn"
+            @click="pick(c.name)"
+          >
+            <span class="icon-circle" aria-hidden="true" v-html="c.icon"></span>
+            <span class="category-name">{{ i + 1 }}.{{ c.name }}</span>
+          </button>
+        </div>
+      </template>
 
       <p v-if="locationState.status === 'locating'" class="locating" role="status">
         定位中，請稍候…
@@ -37,10 +52,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from 'vue';
 import { ensureLocation, locationState, retryLocation } from '../locationState';
-import { go, store } from '../store';
+import { go, persistVoiceDefault, store } from '../store';
 import { useTts } from '../composables/useTts';
-import { categoryPrompt } from '../voice/scripts';
+import { categoryPrompt, voiceOnConfirmed } from '../voice/scripts';
 import type { CategoryName } from '../bridge/types';
+
+const iconVoiceOn =
+  '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5 6 9H3v6h3l5 4V5z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15.5 8.5a5 5 0 0 1 0 7" /><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 5.5a9 9 0 0 1 0 13" /></svg>';
+const iconVoiceOff =
+  '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5 6 9H3v6h3l5 4V5z" /><path stroke-linecap="round" stroke-linejoin="round" d="m22 9-6 6M16 9l6 6" /></svg>';
 
 const categories: Array<{ name: CategoryName; icon: string }> = [
   {
@@ -66,6 +86,11 @@ const { speak, stop } = useTts();
 function pick(name: CategoryName): void {
   stop();
   store.category = name;
+  store.transport = null;
+  if (name === '交通') {
+    go('transport');
+    return;
+  }
   store.listPage = 0;
   store.querySeq += 1;
   go('list');
@@ -78,6 +103,17 @@ function retry(): void {
 function backToVoice(): void {
   stop();
   go('voice');
+}
+
+async function toggleVoice(): Promise<void> {
+  const on = !store.voiceOn;
+  store.voiceOn = on;
+  persistVoiceDefault(on);
+  if (!on) {
+    stop();
+    return;
+  }
+  await speak(`${voiceOnConfirmed()}。${categoryPrompt()}`);
 }
 
 onMounted(() => {
@@ -146,6 +182,11 @@ onBeforeUnmount(() => {
   height: 26px;
 }
 
+.topbar-spacer {
+  width: 48px;
+  flex: none;
+}
+
 .content {
   flex: 1;
   display: flex;
@@ -154,6 +195,46 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 20px 24px;
   min-height: 0;
+}
+
+.voice-toggle {
+  width: 100%;
+  min-height: 56px;
+  margin-bottom: 16px;
+  border: 1.5px solid var(--primary-500);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--primary-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  flex: none;
+}
+
+.voice-toggle.on {
+  background: var(--primary-600);
+  border-color: var(--primary-600);
+  color: var(--white);
+}
+
+.voice-toggle:active {
+  transform: scale(0.98);
+}
+
+.toggle-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.toggle-icon :deep(svg) {
+  width: 28px;
+  height: 28px;
 }
 
 .grid {

@@ -1,6 +1,7 @@
 // Centralized voice scripts (all spoken Chinese in one place).
 // Views call these helpers and pass the result to useTts().speak().
-// Numbering restarts per page (1-5); categories are fixed 1-4.
+// List ordinals are global across pages (page 2 starts at 6);
+// categories are fixed 1-4.
 import { formatDistance } from '../utils/format';
 import type { PlaceDetail, PlaceItem } from '../bridge/types';
 
@@ -18,31 +19,59 @@ export function categoryPrompt(): string {
   return '請選擇場所類別，有1.交通、2.娛樂、3.運動、4.醫療四種。';
 }
 
-// --- P2 list ---
-function restNames(items: PlaceItem[], startIndex: number): string {
+// --- P1b transport (1.公車、2.捷運、3.臺鐵、4.貓空纜車) ---
+export function transportPrompt(): string {
+  return '請選擇交通工具，有1.公車、2.捷運、3.臺鐵、4.貓空纜車四種。';
+}
+
+// --- P2 list (global ordinals; hint only on first announcement) ---
+const HINT = '點選可看詳細資訊。';
+
+const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+
+// Ordinals in speech use Chinese numerals (第一個…第十一個…).
+function toChinese(n: number): string {
+  if (n <= 10) return n === 10 ? '十' : CN_DIGITS[n]!;
+  if (n < 20) return `十${CN_DIGITS[n - 10]!}`;
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  return `${CN_DIGITS[tens]!}十${ones === 0 ? '' : CN_DIGITS[ones]!}`;
+}
+
+function restNames(items: PlaceItem[], startOrdinal: number): string {
   return items
     .slice(1)
-    .map((item, i) => `第${startIndex + i + 1}個，${item.name}。`)
+    .map((item, i) => `第${toChinese(startOrdinal + i + 1)}個，${item.name}。`)
     .join('');
 }
 
-function firstDetail(item: PlaceItem): string {
+function firstDetail(item: PlaceItem, ordinal: number, withHint: boolean): string {
   return (
-    `最近的是${item.name}，` +
-    `距離${formatDistance(item.distanceMeters)}，扣${item.points}點。點選可看詳細資訊。`
+    `第${toChinese(ordinal)}個是${item.name}，` +
+    `距離${formatDistance(item.distanceMeters)}，扣${item.points}點。` +
+    (withHint ? HINT : '')
   );
 }
 
 export function listSummary(total: number, category: string, items: PlaceItem[]): string {
   const first = items[0];
   if (!first) return listEmpty(category);
-  return `找到${total}個${category}場所。` + firstDetail(first) + restNames(items, 1);
+  return (
+    `找到${total}個${category}場所。` +
+    firstDetail(first, 1, true) +
+    restNames(items, 1)
+  );
 }
 
-export function listPageAnnouncement(page: number, items: PlaceItem[]): string {
+export function listPageAnnouncement(
+  page: number,
+  items: PlaceItem[],
+  pageSize = 5,
+): string {
   const first = items[0];
   if (!first) return '';
-  return `第${page + 1}頁。` + firstDetail(first) + restNames(items, 1);
+  const ordinal = page * pageSize + 1;
+  return `第${page + 1}頁。` + firstDetail(first, ordinal, false) + restNames(items, ordinal);
 }
 
 export function listEmpty(category: string): string {

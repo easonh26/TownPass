@@ -6,6 +6,19 @@ public static class Categories
 {
     public static readonly string[] All = ["交通", "娛樂", "運動", "醫療"];
 
+    // Frontend display name -> exact DB category values ("交通-" prefix).
+    // 捷運 includes 機場捷運 (same MRT system); 貓空纜車 is listed separately.
+    public static readonly IReadOnlyDictionary<string, string[]> TransportMap =
+        new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["公車"] = ["交通-公車"],
+            ["捷運"] = ["交通-捷運", "交通-機場捷運"],
+            ["臺鐵"] = ["交通-臺鐵"],
+            ["貓空纜車"] = ["交通-貓纜"],
+        };
+
+    public static readonly string[] Transports = ["公車", "捷運", "臺鐵", "貓空纜車"];
+
     // "交通-公車" -> "公車"；其餘維持原名（游泳池、聯合醫院院區…）。
     public static string SubCategory(string main, string category) =>
         main == "交通" && category.StartsWith("交通-", StringComparison.Ordinal)
@@ -79,14 +92,24 @@ public sealed class VenuesRepository
     private const string Columns =
         "id, name, category, address, lat, lng, discount_info, points_deducted, main_category";
 
-    public List<Venue> QueryBox(string category, double lat, double lng, int radiusMeters)
+    public List<Venue> QueryBox(
+        string category, double lat, double lng, int radiusMeters,
+        IReadOnlyList<string>? subcategories = null)
     {
         using var conn = new SqliteConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText =
-            $"SELECT {Columns} FROM venues WHERE main_category = $cat " +
-            "AND lat BETWEEN $latMin AND $latMax AND lng BETWEEN $lngMin AND $lngMax";
+        var sql =
+            $"SELECT {Columns} FROM venues WHERE main_category = $cat ";
+        if (subcategories is { Count: > 0 })
+        {
+            var names = string.Join(", ", subcategories.Select((_, i) => $"$sub{i}"));
+            sql += $"AND category IN ({names}) ";
+            for (var i = 0; i < subcategories.Count; i++)
+                cmd.Parameters.AddWithValue($"$sub{i}", subcategories[i]);
+        }
+        sql += "AND lat BETWEEN $latMin AND $latMax AND lng BETWEEN $lngMin AND $lngMax";
+        cmd.CommandText = sql;
         cmd.Parameters.AddWithValue("$cat", category);
         AddBBox(cmd, lat, lng, radiusMeters);
         using var reader = cmd.ExecuteReader();
@@ -109,7 +132,8 @@ public sealed class VenuesRepository
     // Nearest-first search with expanding radius, then merge same-name
     // venues within MergeMeters (bus stops share names across stops).
     public (int RadiusMeters, List<(Venue Venue, double Distance)>) SearchNearest(
-        string category, double lat, double lng, int limit)
+        string category, double lat, double lng, int limit,
+        IReadOnlyList<string>? subcategories = null)
     {
         int[] steps = [500, 1000, 2000, 5000, 10000];
         List<Venue> candidates = [];
@@ -117,7 +141,7 @@ public sealed class VenuesRepository
         foreach (var r in steps)
         {
             used = r;
-            candidates = QueryBox(category, lat, lng, r);
+            candidates = QueryBox(category, lat, lng, r, subcategories);
             if (candidates.Count >= limit * 3) break;
         }
 

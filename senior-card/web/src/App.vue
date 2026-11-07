@@ -1,9 +1,10 @@
 <template>
   <VoiceView v-if="store.view === 'voice'" />
   <CategoryView v-else-if="store.view === 'categories'" />
+  <TransportView v-else-if="store.view === 'transport'" />
   <ResultListView
     v-else-if="store.view === 'list'"
-    :key="`list-${store.category}-${store.querySeq}`"
+    :key="`list-${store.category}-${store.transport ?? ''}-${store.querySeq}`"
   />
   <DetailView v-else :key="`detail-${store.placeId ?? 'none'}`" />
 </template>
@@ -11,6 +12,7 @@
 <script setup lang="ts">
 import VoiceView from './views/VoiceView.vue';
 import CategoryView from './views/CategoryView.vue';
+import TransportView from './views/TransportView.vue';
 import ResultListView from './views/ResultListView.vue';
 import DetailView from './views/DetailView.vue';
 import { store } from './store';

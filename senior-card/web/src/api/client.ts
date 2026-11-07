@@ -32,6 +32,7 @@ export function fetchPlaces(
   lat: number,
   lng: number,
   limit = 20,
+  subcategory?: string | null,
 ): Promise<PlacesResponse> {
   const params = new URLSearchParams({
     category,
@@ -39,6 +40,7 @@ export function fetchPlaces(
     lng: String(lng),
     limit: String(limit),
   });
+  if (subcategory) params.set('subcategory', subcategory);
   return getJson<PlacesResponse>(`/places?${params.toString()}`);
 }
 

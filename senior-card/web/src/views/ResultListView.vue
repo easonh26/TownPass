@@ -5,7 +5,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
       </button>
       <h1>{{ radiusTitle }}</h1>
-      <span class="tag">{{ store.category }}</span>
+      <span class="tag">{{ store.transport ?? store.category }}</span>
     </header>
 
     <main class="content">
@@ -101,8 +101,15 @@ const radiusTitle = computed(() =>
 
 function backToCategories(): void {
   stop();
+  if (store.category === '交通' && store.transport) {
+    go('transport');
+    return;
+  }
   go('categories');
 }
+
+// Display label for voice scripts: transport sub-type if chosen.
+const listLabel = computed(() => store.transport ?? store.category ?? '');
 
 function openDetail(id: string): void {
   stop();
@@ -128,7 +135,7 @@ function nextPage(): void {
 
 function speakCurrentPage(): void {
   if (!store.voiceOn || items.value.length === 0) return;
-  const text = listPageAnnouncement(store.listPage, pageItems.value);
+  const text = listPageAnnouncement(store.listPage, pageItems.value, PAGE_SIZE);
   if (!text) return;
   void speak(text);
 }
@@ -151,18 +158,19 @@ async function load(): Promise<void> {
       locationState.position.latitude,
       locationState.position.longitude,
       20,
+      store.category === '交通' ? store.transport : null,
     );
     radiusMeters.value = res.radiusMeters;
     items.value = res.items;
     totalCount.value = res.items.length;
     if (res.items.length === 0) {
       state.value = 'empty';
-      if (store.voiceOn) void speak(listEmpty(store.category!));
+      if (store.voiceOn) void speak(listEmpty(listLabel.value));
       return;
     }
     state.value = 'ready';
     if (store.voiceOn) {
-      void speak(listSummary(totalCount.value, store.category!, res.items));
+      void speak(listSummary(totalCount.value, listLabel.value, res.items));
     }
   } catch (e) {
     errorMessage.value = apiErrorMessage(e);

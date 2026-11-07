@@ -25,9 +25,13 @@
         <section aria-label="店家位置">
           <h2 class="section-title">店家位置</h2>
           <div class="map-card">
-            <StaticMap :lat="place.lat" :lng="place.lng" />
-            <button type="button" class="map-hint" @click="openFullMap">
-              點擊地圖規劃路線 →
+            <button
+              type="button"
+              class="map-nav"
+              @click="openFullMap"
+              aria-label="開啟路線規劃"
+            >
+              <StaticMap :lat="place.lat" :lng="place.lng" />
             </button>
             <p class="address"><span aria-hidden="true">📍</span><span>{{ place.address }}</span></p>
           </div>
@@ -300,16 +304,14 @@ onBeforeUnmount(() => {
   flex: none;
 }
 
-.map-hint {
-  margin-top: 2px;
+.map-nav {
+  display: block;
   width: 100%;
   border: none;
   background: transparent;
-  color: var(--primary-500);
-  font-size: 15px;
-  font-weight: 700;
-  text-align: center;
-  padding: 2px 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .address {

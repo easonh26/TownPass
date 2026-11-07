@@ -70,11 +70,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .static-map {
   width: 100%;
-  height: clamp(72px, 11dvh, 120px);
+  height: clamp(140px, 22dvh, 220px);
   border-radius: 13px;
   overflow: hidden;
   background: #e8eef0;
   flex: none;
+  pointer-events: none;
 }
 </style>
 

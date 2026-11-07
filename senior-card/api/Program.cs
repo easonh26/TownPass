@@ -35,7 +35,7 @@ app.MapGet("/api/health", () =>
         ? Results.Ok(new { status = "ok", time = DateTimeOffset.UtcNow })
         : Results.Problem("venues database unavailable", statusCode: 503));
 
-app.MapGet("/api/v1/places", (string? category, double? lat, double? lng, int? limit) =>
+app.MapGet("/api/v1/places", (string? category, double? lat, double? lng, int? limit, string? subcategory) =>
 {
     if (string.IsNullOrWhiteSpace(category) || !Categories.All.Contains(category))
         return Results.Problem("category must be one of 交通/娛樂/運動/醫療", statusCode: 400);
@@ -43,7 +43,15 @@ app.MapGet("/api/v1/places", (string? category, double? lat, double? lng, int? l
         return Results.Problem("lat/lng out of range", statusCode: 400);
     var take = Math.Clamp(limit ?? 20, 1, 50);
 
-    var (radius, found) = venues.SearchNearest(category!, lat.Value, lng.Value, take);
+    string[]? subs = null;
+    if (!string.IsNullOrWhiteSpace(subcategory))
+    {
+        if (category != "交通" || !Categories.TransportMap.TryGetValue(subcategory, out var mapped))
+            return Results.Problem("subcategory must be one of 公車/捷運/臺鐵/貓空纜車 (交通 only)", statusCode: 400);
+        subs = mapped;
+    }
+
+    var (radius, found) = venues.SearchNearest(category!, lat.Value, lng.Value, take, subs);
     var items = found.Select(x => new PlaceItem(
         x.Venue.Id, x.Venue.Name,
         Categories.SubCategory(x.Venue.MainCategory, x.Venue.Category),

@@ -2,7 +2,9 @@
 import { reactive } from 'vue';
 import type { CategoryName, GeoPosition } from './bridge/types';
 
-export type ViewName = 'voice' | 'categories' | 'list' | 'detail';
+export type ViewName = 'voice' | 'categories' | 'transport' | 'list' | 'detail';
+
+export type TransportName = '公車' | '捷運' | '臺鐵' | '貓空纜車';
 
 const VOICE_KEY = 'senior-card-voice-on';
 
@@ -25,6 +27,7 @@ export const store = reactive({
   location: null as GeoPosition | null,
   locationFailed: false as boolean,
   category: null as CategoryName | null,
+  transport: null as TransportName | null,
   placeId: null as string | null,
   listPage: 0,
   // Bumped every time a new query starts so ResultListView remounts.
