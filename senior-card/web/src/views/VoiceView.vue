@@ -48,11 +48,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { isInApp, postNative } from '../bridge/native';
 import { ensureLocation } from '../locationState';
 import { go, persistVoiceDefault, store } from '../store';
 import { useTts } from '../composables/useTts';
+import { askVoiceOn, voiceOnConfirmed } from '../voice/scripts';
 
 const BALANCE_URL = 'https://ezweb.easycard.com.tw/search/CardSearch.php';
 
@@ -70,7 +71,7 @@ async function choose(on: boolean): Promise<void> {
     status.value = '已關閉語音朗讀';
   } else {
     status.value = '已開啟語音朗讀';
-    await speak('已開啟語音朗讀');
+    await speak(voiceOnConfirmed());
     if (!supported.value) status.value = '此裝置不支援語音朗讀';
   }
   // Start locating in the background while the user moves on.
@@ -81,12 +82,20 @@ async function choose(on: boolean): Promise<void> {
 function openBalance(): void {
   stop();
   if (isInApp()) {
-    // Opened through the App so the user can come back with the AppBar X.
-    postNative('open_link', BALANCE_URL);
+    // System browser: the easycard page (captcha/JS) doesn't work in WebView.
+    postNative('open_external', BALANCE_URL);
   } else {
     window.location.href = BALANCE_URL;
   }
 }
+
+onMounted(() => {
+  void speak(askVoiceOn());
+});
+
+onBeforeUnmount(() => {
+  stop();
+});
 </script>
 
 <style scoped>

@@ -33,13 +33,14 @@
 
       <div v-else class="list" role="list">
         <button
-          v-for="item in pageItems"
+          v-for="(item, idx) in pageItems"
           :key="item.id"
           type="button"
           class="row"
           role="listitem"
           @click="openDetail(item.id)"
         >
+          <span class="row-num" aria-hidden="true">{{ store.listPage * PAGE_SIZE + idx + 1 }}</span>
           <span class="row-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" /></svg>
           </span>
@@ -73,6 +74,7 @@ import { ensureLocation, locationState } from '../locationState';
 import { go, store } from '../store';
 import { useTts } from '../composables/useTts';
 import { formatDistance, formatRadius } from '../utils/format';
+import { listEmpty, listPageAnnouncement, listSummary, loadFailed, locationFailed } from '../voice/scripts';
 import type { PlaceItem } from '../bridge/types';
 
 type State = 'loading' | 'location-failed' | 'error' | 'empty' | 'ready';
@@ -126,12 +128,9 @@ function nextPage(): void {
 
 function speakCurrentPage(): void {
   if (!store.voiceOn || items.value.length === 0) return;
-  const first = pageItems.value[0];
-  if (!first) return;
-  void speak(
-    `第${store.listPage + 1}頁。最近的是${first.name}，` +
-      `距離${formatDistance(first.distanceMeters)}，扣${first.points}點。點選可看詳細資訊。`,
-  );
+  const text = listPageAnnouncement(store.listPage, pageItems.value);
+  if (!text) return;
+  void speak(text);
 }
 
 async function load(): Promise<void> {
@@ -143,7 +142,7 @@ async function load(): Promise<void> {
   const ok = await ensureLocation();
   if (!ok || !locationState.position) {
     state.value = 'location-failed';
-    if (store.voiceOn) void speak('無法取得位置，請確認已開啟定位服務，再按一次再試一次。');
+    if (store.voiceOn) void speak(locationFailed());
     return;
   }
   try {
@@ -158,22 +157,17 @@ async function load(): Promise<void> {
     totalCount.value = res.items.length;
     if (res.items.length === 0) {
       state.value = 'empty';
-      if (store.voiceOn) void speak(`附近沒有${store.category}類場所，請換個類別試試看。`);
+      if (store.voiceOn) void speak(listEmpty(store.category!));
       return;
     }
     state.value = 'ready';
     if (store.voiceOn) {
-      const first = res.items[0]!;
-      void speak(
-        `找到${totalCount.value}個${store.category}場所。` +
-          `最近的是${first.name}，距離${formatDistance(first.distanceMeters)}，` +
-          `扣${first.points}點。點選可看詳細資訊。`,
-      );
+      void speak(listSummary(totalCount.value, store.category!, res.items));
     }
   } catch (e) {
     errorMessage.value = apiErrorMessage(e);
     state.value = 'error';
-    if (store.voiceOn) void speak('讀取失敗，請再試一次。');
+    if (store.voiceOn) void speak(loadFailed());
   }
 }
 
@@ -311,6 +305,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 10px;
   min-height: 0;
+  flex: 1;
 }
 
 .row {
@@ -321,14 +316,29 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   text-align: left;
   width: 100%;
-  flex: none;
+  flex: 1;
+  min-height: 0;
 }
 
 .row:active {
   background: var(--primary-50);
+}
+
+.row-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-500);
+  color: var(--white);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex: none;
 }
 
 .row-icon {

@@ -1,6 +1,9 @@
 <template>
   <div class="page">
     <header class="topbar">
+      <button type="button" class="nav-btn" aria-label="回語音選擇" @click="backToVoice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+      </button>
       <h1>地點分類</h1>
     </header>
 
@@ -13,14 +16,14 @@
 
       <div v-else class="grid" role="group" aria-label="場所類別">
         <button
-          v-for="c in categories"
+          v-for="(c, i) in categories"
           :key="c.name"
           type="button"
           class="category-btn"
           @click="pick(c.name)"
         >
           <span class="icon-circle" aria-hidden="true" v-html="c.icon"></span>
-          <span class="category-name">{{ c.name }}</span>
+          <span class="category-name">{{ i + 1 }}.{{ c.name }}</span>
         </button>
       </div>
 
@@ -36,6 +39,7 @@ import { onBeforeUnmount, onMounted } from 'vue';
 import { ensureLocation, locationState, retryLocation } from '../locationState';
 import { go, store } from '../store';
 import { useTts } from '../composables/useTts';
+import { categoryPrompt } from '../voice/scripts';
 import type { CategoryName } from '../bridge/types';
 
 const categories: Array<{ name: CategoryName; icon: string }> = [
@@ -71,10 +75,15 @@ function retry(): void {
   void retryLocation();
 }
 
+function backToVoice(): void {
+  stop();
+  go('voice');
+}
+
 onMounted(() => {
   if (locationState.status === 'idle') void ensureLocation();
   if (store.voiceOn) {
-    void speak('請選擇場所類別，有交通、娛樂、運動、醫療四種。');
+    void speak(categoryPrompt());
   }
 });
 
@@ -101,17 +110,40 @@ onBeforeUnmount(() => {
   color: var(--white);
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 14px 16px;
+  gap: 4px;
+  padding: 12px 12px;
   flex: none;
   box-shadow: 0 2px 8px rgba(62, 183, 200, 0.25);
 }
 
 .topbar h1 {
   margin: 0;
+  flex: 1;
+  text-align: center;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 2px;
+}
+
+.nav-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--white);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.nav-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.nav-btn svg {
+  width: 26px;
+  height: 26px;
 }
 
 .content {

@@ -27,7 +27,7 @@
           <div class="map-card">
             <StaticMap :lat="place.lat" :lng="place.lng" />
             <button type="button" class="map-hint" @click="openFullMap">
-              點擊地圖查看完整位置 →
+              點擊地圖規劃路線 →
             </button>
             <p class="address"><span aria-hidden="true">📍</span><span>{{ place.address }}</span></p>
           </div>
@@ -74,6 +74,7 @@ import { locationState } from '../locationState';
 import { go, store } from '../store';
 import { useTts } from '../composables/useTts';
 import { formatDistance } from '../utils/format';
+import { detailSummary, loadFailed } from '../voice/scripts';
 import type { PlaceDetail } from '../bridge/types';
 
 const BENEFITS_PER_PAGE = 2;
@@ -108,11 +109,15 @@ function replay(): void {
 
 function openFullMap(): void {
   if (!place.value) return;
+  const pos = locationState.position;
+  const from = pos ? `${pos.latitude},${pos.longitude}` : null;
   const url =
-    `https://www.openstreetmap.org/?mlat=${place.value.lat}&mlon=${place.value.lng}` +
-    `#map=17/${place.value.lat}/${place.value.lng}`;
+    'https://www.openstreetmap.org/directions?' +
+    (from ? `from=${from}&` : '') +
+    `to=${place.value.lat},${place.value.lng}` +
+    `#map=16/${place.value.lat}/${place.value.lng}`;
   if (isInApp()) {
-    postNative('open_link', url);
+    postNative('open_external', url);
   } else {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
@@ -137,8 +142,7 @@ function nextTextPage(): void {
 function speakCurrentPage(): void {
   const p = place.value;
   if (!store.voiceOn || !p) return;
-  const lines = textPageItems.value.map((b, i) => `第${textPage.value * BENEFITS_PER_PAGE + i + 1}條，${b}`);
-  void speak(`${p.name}，距離${formatDistance(p.distanceMeters)}，扣${p.points}點。${lines.join('')}`);
+  void speak(detailSummary(p, textPageItems.value, textPage.value));
 }
 
 async function load(): Promise<void> {
@@ -161,7 +165,7 @@ async function load(): Promise<void> {
   } catch (e) {
     errorMessage.value = apiErrorMessage(e);
     state.value = 'error';
-    if (store.voiceOn) void speak('讀取失敗，請再試一次。');
+    if (store.voiceOn) void speak(loadFailed());
   }
 }
 
