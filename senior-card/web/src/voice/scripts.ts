@@ -45,21 +45,28 @@ function restNames(items: PlaceItem[], startOrdinal: number): string {
     .join('');
 }
 
-function firstDetail(item: PlaceItem, ordinal: number, withHint: boolean): string {
+function firstDetail(item: PlaceItem, ordinal: number): string {
   return (
     `第${toChinese(ordinal)}個是${item.name}，` +
-    `距離${formatDistance(item.distanceMeters)}，扣${item.points}點。` +
-    (withHint ? HINT : '')
+    `距離${formatDistance(item.distanceMeters)}，扣${item.points}點。`
   );
 }
 
-export function listSummary(total: number, category: string, items: PlaceItem[]): string {
-  const first = items[0];
+// First announcement: count + hint, then only the first page of items.
+export function listSummary(
+  total: number,
+  category: string,
+  items: PlaceItem[],
+  pageSize = 5,
+): string {
+  const page = items.slice(0, pageSize);
+  const first = page[0];
   if (!first) return listEmpty(category);
   return (
     `找到${total}個${category}場所。` +
-    firstDetail(first, 1, true) +
-    restNames(items, 1)
+    HINT +
+    firstDetail(first, 1) +
+    restNames(page, 1)
   );
 }
 
@@ -71,7 +78,7 @@ export function listPageAnnouncement(
   const first = items[0];
   if (!first) return '';
   const ordinal = page * pageSize + 1;
-  return `第${page + 1}頁。` + firstDetail(first, ordinal, false) + restNames(items, ordinal);
+  return `第${page + 1}頁。` + firstDetail(first, ordinal) + restNames(items, ordinal);
 }
 
 export function listEmpty(category: string): string {

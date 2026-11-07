@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <header class="topbar">
-      <button type="button" class="nav-btn" aria-label="回地點分類" @click="backToCategories">
+      <button type="button" class="nav-btn" aria-label="回場所分類" @click="backToCategories">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
       </button>
       <h1>交通工具</h1>
@@ -36,8 +36,8 @@
             class="category-btn"
             @click="pick(t.name)"
           >
-            <span class="icon-circle" aria-hidden="true" v-html="t.icon"></span>
-            <span class="category-name">{{ i + 1 }}.{{ t.name }}</span>
+          <span class="icon-circle" aria-hidden="true" v-html="t.icon"></span>
+          <span class="category-name" :class="{ 'name-long': t.name.length > 3 }">{{ i + 1 }}.{{ t.name }}</span>
           </button>
         </div>
       </template>
@@ -56,14 +56,27 @@ import { go, persistVoiceDefault, store, type TransportName } from '../store';
 import { useTts } from '../composables/useTts';
 import { transportPrompt, voiceOnConfirmed } from '../voice/scripts';
 
+// Side-view bus: long body, beltline, two wheels.
 const BUS_ICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>';
+  '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /><path stroke-linecap="round" d="M3 10.5h18" /><circle cx="7.5" cy="17.5" r="1.6" /><circle cx="16.5" cy="17.5" r="1.6" /></svg>';
+
+// Front-view metro: rounded body, windshield, pantograph.
+const MRT_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12a2 2 0 0 1 2 2v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9a2 2 0 0 1 2-2z" /><path stroke-linecap="round" stroke-linejoin="round" d="M8 13.5V10h8v3.5" /><path stroke-linecap="round" d="M12 10v3.5" /><path stroke-linecap="round" d="M9 7V4M15 7V4M9 4h6" /></svg>';
+
+// Rail engine: cab, chimney, rails with sleepers below.
+const RAIL_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10a1 1 0 0 1 1 1v5H6V9a1 1 0 0 1 1-1z" /><path stroke-linecap="round" d="M12 8V4.5M10.5 4.5h3" /><path stroke-linecap="round" d="M9 11.5h6" /><path stroke-linecap="round" d="M4 17.5h16" /><path stroke-linecap="round" d="M7 17.5V20M12 17.5V20M17 17.5V20" /></svg>';
+
+// Gondola: diagonal cable, hanger, suspended cabin.
+const GONDOLA_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" d="M3 4.5 21 10.5" /><circle cx="12" cy="7.5" r="1" /><path stroke-linecap="round" d="M12 8.5V11" /><path stroke-linecap="round" stroke-linejoin="round" d="M8.5 11h7a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z" /><path stroke-linecap="round" d="M7.5 15h9" /></svg>';
 
 const transports: Array<{ name: TransportName; icon: string }> = [
   { name: '公車', icon: BUS_ICON },
-  { name: '捷運', icon: BUS_ICON },
-  { name: '臺鐵', icon: BUS_ICON },
-  { name: '貓空纜車', icon: BUS_ICON },
+  { name: '捷運', icon: MRT_ICON },
+  { name: '臺鐵', icon: RAIL_ICON },
+  { name: '貓空纜車', icon: GONDOLA_ICON },
 ];
 
 const iconVoiceOn =
@@ -266,9 +279,13 @@ onBeforeUnmount(() => {
 .category-name {
   color: var(--gray-950);
   font-weight: 700;
-  font-size: 24px;
-  letter-spacing: 2px;
-  margin-right: -2px;
+  font-size: 28px;
+  letter-spacing: 4px;
+  margin-right: -4px;
+}
+
+.name-long {
+  font-size: 26px;
 }
 
 .locating {

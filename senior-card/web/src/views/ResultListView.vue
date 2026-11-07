@@ -170,7 +170,7 @@ async function load(): Promise<void> {
     }
     state.value = 'ready';
     if (store.voiceOn) {
-      void speak(listSummary(totalCount.value, listLabel.value, res.items));
+      void speak(listSummary(totalCount.value, listLabel.value, res.items, PAGE_SIZE));
     }
   } catch (e) {
     errorMessage.value = apiErrorMessage(e);

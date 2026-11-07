@@ -4,7 +4,7 @@
       <button type="button" class="nav-btn" aria-label="回語音選擇" @click="backToVoice">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
       </button>
-      <h1>地點分類</h1>
+      <h1>場所分類</h1>
       <span class="topbar-spacer" aria-hidden="true"></span>
     </header>
 
@@ -28,7 +28,7 @@
           <span class="toggle-label">語音朗讀：{{ store.voiceOn ? '開' : '關' }}</span>
         </button>
 
-        <div class="grid" role="group" aria-label="場所類別">
+        <div class="grid" role="group" aria-label="場所分類">
           <button
             v-for="(c, i) in categories"
             :key="c.name"

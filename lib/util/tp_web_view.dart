@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
+import 'package:town_pass/service/senior_tts_service.dart';
 import 'package:town_pass/util/tp_app_bar.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/web_message_handler/tp_web_message_listener.dart';
@@ -26,25 +27,39 @@ class WebViewArgument {
 /// ```
 /// Get.toNamed(TPRoute.webView, arguments: url);
 /// ```
-class TPWebView extends StatelessWidget {
+class TPWebView extends StatefulWidget {
   final TPAppBarController? titleController;
 
-  TPWebView({
+  const TPWebView({
     super.key,
     this.titleController,
   });
 
+  @override
+  State<TPWebView> createState() => _TPWebViewState();
+}
+
+class _TPWebViewState extends State<TPWebView> {
   String get url => (Get.arguments as WebViewArgument?)?.url ?? '';
 
   String? get forceTitle => (Get.arguments as WebViewArgument?)?.forceTitle;
 
   final TPAppBarController _defaultTitleController = TPAppBarController();
 
-  TPAppBarController get appBarController => titleController ?? _defaultTitleController;
+  TPAppBarController get appBarController =>
+      widget.titleController ?? _defaultTitleController;
 
   final Rxn<InAppWebViewController> webViewController = Rxn<InAppWebViewController>();
 
   final RxBool canGoBack = RxBool(false);
+
+  @override
+  void dispose() {
+    // Stop senior-card TTS: closing the WebView destroys the page before its
+    // JS stop() can run, otherwise speech plays on until the utterance ends.
+    SeniorTtsService.stop();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

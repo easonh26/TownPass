@@ -18,6 +18,26 @@ const hasWebSpeech =
 let engine: Engine = hasWebSpeech ? 'web' : 'none';
 let engineReady: Promise<void> | null = null;
 
+// Belt-and-suspenders: if the whole WebView is torn down (user leaves the
+// service), stop any in-flight speech. Native dispose is the reliable path;
+// this covers cases where the page is hidden but the bridge still exists.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    try {
+      postNative('tts_stop', null);
+    } catch {
+      // Best effort only.
+    }
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // Best effort only.
+      }
+    }
+  });
+}
+
 function ensureEngine(): Promise<void> {
   if (engineReady) return engineReady;
   engineReady = (async () => {
