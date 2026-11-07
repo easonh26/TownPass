@@ -12,6 +12,12 @@
 .swiftpm/
 migrate_working_dir/
 
+# Team raw data (CSVs and intermediate DBs): never commit.
+data/
+
+# Design-draft HTML + source DB copies: kept locally only, never commit.
+ref/
+
 # IntelliJ related
 *.iml
 *.ipr

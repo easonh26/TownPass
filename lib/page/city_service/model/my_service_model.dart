@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:town_pass/gen/assets.gen.dart';
+import 'package:town_pass/util/tp_constant.dart';
 
 // 先於 MyServiceItemId enum 加入新服務；
 // 再在 MyServiceIdExt 擴充中加入該服務的 MyServiceItem 物件。
@@ -27,10 +28,11 @@ enum MyServiceItemId {
   waterMeter,
   essentialGoods,
   library,
-  locationSearch,
-  zoo,
-  ;
-}
+    locationSearch,
+    zoo,
+    seniorCard,
+    ;
+  }
 
 extension MyServiceIdExt on MyServiceItemId {
   MyServiceItem get item {
@@ -182,6 +184,14 @@ extension MyServiceIdExt on MyServiceItemId {
           icon: Assets.svg.iconZoo24.svg(),
           category: MyServiceCategory.explore,
           destinationUrl: '',
+        ),
+      MyServiceItemId.seniorCard => MyServiceItem(
+          title: '敬老卡優惠場所查詢',
+          description: '查詢敬老卡點數可用場所與扣點資訊',
+          icon: Assets.svg.iconSenior.svg(),
+          category: MyServiceCategory.cityLife,
+          destinationUrl: kMicroserviceUrl,
+          forceWebViewTitle: kMicroserviceTitle,
         ),
     };
   }

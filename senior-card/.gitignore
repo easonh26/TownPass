@@ -1,0 +1,7 @@
+deploy/.env
+web/node_modules/
+web/dist/
+api/bin/
+api/obj/
+*.user
+.DS_Store

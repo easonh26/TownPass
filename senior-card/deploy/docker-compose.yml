@@ -1,0 +1,38 @@
+# senior-card stack: web (nginx + SPA) + api (ASP.NET) + cloudflared.
+# Local dev without a tunnel:  docker compose up web api
+# Public deploy (needs token):  fill deploy/.env, then docker compose up -d --build
+services:
+  web:
+    build: ../web
+    restart: unless-stopped
+    # Local access for testing (the tunnel uses the internal network).
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build: ../api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      VENUES_DB_PATH: /app/data/venues.db
+    # NOTE: the DB is baked into the image. To hot-swap venues.db without
+    # rebuilding, add a volumes entry like:
+    #   volumes:
+    #     - ./venues.override.db:/app/data/venues.db:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    env_file: .env
+    depends_on:
+      web:
+        condition: service_started

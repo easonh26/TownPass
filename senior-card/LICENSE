@@ -1,0 +1,20 @@
+senior-card（敬老卡優惠場所查詢）授權聲明
+
+本作品（含微服務前端、後端 API、部署設定，以及為本作品修改之
+TownPass App 程式碼）以 GNU Affero General Public License v3.0
+（AGPL-3.0）釋出。
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+完整條文：https://www.gnu.org/licenses/agpl-3.0.html
+
+第三方元件授權見 README「第三方套件與授權」一節。
+TownPass 上游專案本身採 GPL-3.0（見 repo 根目錄 LICENSE）。
