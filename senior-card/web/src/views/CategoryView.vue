@@ -19,13 +19,13 @@
         <button
           type="button"
           class="voice-toggle"
-          :class="{ on: store.voiceOn }"
-          :aria-pressed="store.voiceOn"
+          :class="{ on: store.voiceLang !== 'off' }"
+          :aria-pressed="store.voiceLang !== 'off'"
           aria-label="語音朗讀開關"
           @click="toggleVoice"
         >
-          <span class="toggle-icon" aria-hidden="true" v-html="store.voiceOn ? iconVoiceOn : iconVoiceOff"></span>
-          <span class="toggle-label">語音朗讀：{{ store.voiceOn ? '開' : '關' }}</span>
+          <span class="toggle-icon" aria-hidden="true" v-html="store.voiceLang === 'off' ? iconVoiceOff : iconVoiceOn"></span>
+          <span class="toggle-label">語音朗讀：{{ langLabel }}</span>
         </button>
 
         <div class="grid" role="group" aria-label="場所分類">
@@ -51,10 +51,12 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from 'vue';
+import { computed } from 'vue';
 import { ensureLocation, locationState, retryLocation } from '../locationState';
-import { go, persistVoiceDefault, store } from '../store';
-import { useTts } from '../composables/useTts';
-import { categoryPrompt, voiceOnConfirmed } from '../voice/scripts';
+import { go, persistVoiceDefault, store, type VoiceLang } from '../store';
+import { useVoice } from '../composables/useVoice';
+import { categoryPrompt } from '../voice/scripts';
+import { categoryPromptTaigi, confirmTaigi } from '../voice/taigi';
 import type { CategoryName } from '../bridge/types';
 
 const iconVoiceOn =
@@ -81,7 +83,13 @@ const categories: Array<{ name: CategoryName; icon: string }> = [
   },
 ];
 
-const { speak, stop } = useTts();
+const { say, stop } = useVoice();
+
+const langLabel = computed(() =>
+  store.voiceLang === 'taigi' ? '台語' : store.voiceLang === 'mandarin' ? '國語' : '關',
+);
+
+const LANG_CYCLE: VoiceLang[] = ['off', 'mandarin', 'taigi'];
 
 function pick(name: CategoryName): void {
   stop();
@@ -106,20 +114,25 @@ function backToVoice(): void {
 }
 
 async function toggleVoice(): Promise<void> {
-  const on = !store.voiceOn;
-  store.voiceOn = on;
-  persistVoiceDefault(on);
-  if (!on) {
+  const next = LANG_CYCLE[(LANG_CYCLE.indexOf(store.voiceLang) + 1) % LANG_CYCLE.length]!;
+  stop();
+  store.voiceLang = next;
+  persistVoiceDefault(next);
+  if (next === 'off') {
     stop();
     return;
   }
-  await speak(`${voiceOnConfirmed()}。${categoryPrompt()}`);
+  if (next === 'taigi') {
+    await say(categoryPrompt(), `${confirmTaigi()} ${categoryPromptTaigi()}`);
+    return;
+  }
+  await say(categoryPrompt(), null);
 }
 
 onMounted(() => {
   if (locationState.status === 'idle') void ensureLocation();
-  if (store.voiceOn) {
-    void speak(categoryPrompt());
+  if (store.voiceLang !== 'off') {
+    void say(categoryPrompt(), store.voiceLang === 'taigi' ? categoryPromptTaigi() : null);
   }
 });
 

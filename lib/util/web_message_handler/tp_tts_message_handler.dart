@@ -1,5 +1,6 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:town_pass/service/senior_tts_service.dart';
+import 'package:town_pass/service/taigi_tts_service.dart';
 import 'package:town_pass/util/web_message_handler/tp_web_message_handler.dart';
 
 /// tts_check -> { available: bool }
@@ -35,6 +36,8 @@ class TtsSpeakMessageHandler extends TPWebMessageHandler {
       {'text': final Object? t} => t?.toString() ?? '',
       _ => '',
     };
+    // Cross-engine: never let Taigi audio play over Mandarin speech.
+    await TaigiTtsService.stop();
     final String result = await SeniorTtsService.speak(text);
     onReply?.call(replyWebMessage(data: result));
   }

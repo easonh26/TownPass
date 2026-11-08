@@ -9,24 +9,32 @@
         </svg>
       </div>
       <h1 id="voice-title">語音朗讀</h1>
-      <p>是否開啟語音朗讀？</p>
+      <p>請選擇語音</p>
 
-      <div class="choices" role="group" aria-label="是否開啟語音朗讀">
+      <div class="choices choices-3" role="group" aria-label="請選擇語音">
         <button
           type="button"
-          class="choice choice-no"
-          :aria-pressed="!voiceOn"
-          @click="choose(false)"
+          class="choice choice-yes"
+          :aria-pressed="lang === 'mandarin'"
+          @click="choose('mandarin')"
         >
-          否
+          國語
         </button>
         <button
           type="button"
           class="choice choice-yes"
-          :aria-pressed="voiceOn"
-          @click="choose(true)"
+          :aria-pressed="lang === 'taigi'"
+          @click="choose('taigi')"
         >
-          是
+          台語
+        </button>
+        <button
+          type="button"
+          class="choice choice-no"
+          :aria-pressed="lang === 'off'"
+          @click="choose('off')"
+        >
+          否
         </button>
       </div>
     </section>
@@ -51,28 +59,51 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { isInApp, postNative } from '../bridge/native';
 import { ensureLocation } from '../locationState';
-import { go, persistVoiceDefault, store } from '../store';
-import { useTts } from '../composables/useTts';
+import { go, persistVoiceDefault, store, type VoiceLang } from '../store';
+import { useVoice } from '../composables/useVoice';
 import { askVoiceOn, voiceOnConfirmed } from '../voice/scripts';
+import { askTaigi, confirmTaigi } from '../voice/taigi';
 
 const BALANCE_URL = 'https://ezweb.easycard.com.tw/search/CardSearch.php';
 
-const voiceOn = ref(false);
+const lang = ref<VoiceLang>('off');
 const status = ref('');
-const { speak, stop, supported } = useTts();
+const { say, speak, speakTaigi, stop, supported } = useVoice();
 
-async function choose(on: boolean): Promise<void> {
-  voiceOn.value = on;
-  store.voiceOn = on;
+let alive = true;
+
+async function choose(next: VoiceLang): Promise<void> {
+  // Stop any in-flight auto-ask before starting the new utterance.
+  stop();
+  lang.value = next;
+  store.voiceLang = next;
   store.voiceAsked = true;
-  persistVoiceDefault(on);
-  if (!on) {
+  persistVoiceDefault(next);
+  if (next === 'off') {
     stop();
     status.value = '已關閉語音朗讀';
-  } else {
+  } else if (next === 'mandarin') {
     status.value = '已開啟語音朗讀';
-    await speak(voiceOnConfirmed());
+    await say(voiceOnConfirmed(), null);
     if (!supported.value) status.value = '此裝置不支援語音朗讀';
+  } else {
+    // Only switch to Taigi after the engine proves ready.
+    status.value = '台語語音準備中，請稍候…';
+    const ok = await speakTaigi(confirmTaigi(), () => {
+      status.value = '台語語音準備中，請稍候…';
+    });
+    if (ok) {
+      lang.value = 'taigi';
+      store.voiceLang = 'taigi';
+      persistVoiceDefault('taigi');
+      status.value = '台語語音已經開';
+    } else {
+      status.value = '台語語音未就緒，改用國語';
+      await say(voiceOnConfirmed(), null);
+      lang.value = 'mandarin';
+      store.voiceLang = 'mandarin';
+      persistVoiceDefault('mandarin');
+    }
   }
   // Start locating in the background while the user moves on.
   void ensureLocation();
@@ -90,10 +121,18 @@ function openBalance(): void {
 }
 
 onMounted(() => {
-  void speak(askVoiceOn());
+  alive = true;
+  // Warm up the Taigi model in the background while the user decides.
+  postNative('taigi_warmup', null);
+  void (async () => {
+    await speak(askVoiceOn());
+    if (!alive) return;
+    await speakTaigi(askTaigi());
+  })();
 });
 
 onBeforeUnmount(() => {
+  alive = false;
   stop();
 });
 </script>
@@ -156,6 +195,14 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr 1fr;
   width: 100%;
   gap: 12px;
+}
+
+.choices-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.choices-3 .choice {
+  font-size: 22px;
 }
 
 .choice {

@@ -6,23 +6,25 @@ export type ViewName = 'voice' | 'categories' | 'transport' | 'list' | 'detail';
 
 export type TransportName = '公車' | '捷運' | '臺鐵' | '貓空纜車';
 
+export type VoiceLang = 'off' | 'mandarin' | 'taigi';
+
 const VOICE_KEY = 'senior-card-voice-on';
 
-function loadVoiceOn(): boolean | null {
+function loadVoiceLang(): VoiceLang {
   try {
     const raw = localStorage.getItem(VOICE_KEY);
-    if (raw === '1') return true;
-    if (raw === '0') return false;
+    if (raw === '2') return 'taigi';
+    if (raw === '1') return 'mandarin';
   } catch {
     // localStorage may be unavailable in some WebViews.
   }
-  return null;
+  return 'off';
 }
 
 export const store = reactive({
   view: 'voice' as ViewName,
   // P0 asks every launch, so always start undecided; persisted only as default.
-  voiceOn: false as boolean,
+  voiceLang: 'off' as VoiceLang,
   voiceAsked: false as boolean,
   location: null as GeoPosition | null,
   locationFailed: false as boolean,
@@ -34,16 +36,16 @@ export const store = reactive({
   querySeq: 0,
 });
 
-export function persistVoiceDefault(on: boolean): void {
+export function persistVoiceDefault(lang: VoiceLang): void {
   try {
-    localStorage.setItem(VOICE_KEY, on ? '1' : '0');
+    localStorage.setItem(VOICE_KEY, lang === 'taigi' ? '2' : lang === 'mandarin' ? '1' : '0');
   } catch {
     // Best effort only.
   }
 }
 
-export function voiceDefault(): boolean {
-  return loadVoiceOn() ?? false;
+export function voiceDefault(): VoiceLang {
+  return loadVoiceLang();
 }
 
 export function go(view: ViewName): void {

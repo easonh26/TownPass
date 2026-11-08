@@ -77,6 +77,10 @@ flutter build apk --debug --dart-define=MICROSERVICE_URL=https://cdf19.twread.ne
 - 場所資料：隊伍自行整理 `venues.db`（14,387 筆，敬老卡合作場所）。
   核心欄位（名稱 / 類別 / 地址 / 座標 / 扣點 / 扣點詳情）皆為自行整理；
   無第三方開放資料集。
+- 台語音標庫：`api/data/venues_taigi.db`（`venues.db` 副本＋`name_phonemes` /
+  `discount_phonemes`，由 `senior-card/taigi/make_taigi_db.py` 以 pygoruut 0.6.3
+  `MinnanHokkien2` 轉寫產生，詳見 `senior-card/taigi/`）。
+  未能轉寫的 68 筆（OOV 清單見 `oov_review.md`）台語模式自動降級國語。
 - 地圖圖資：內政部國土測繪中心「臺灣通用電子地圖」WMTS
   （`https://wmts.nlsc.gov.tw/wmts`，免申請開放介接），
   備援 Esri World Street Map（皆標註 attribution）。
@@ -92,14 +96,29 @@ flutter build apk --debug --dart-define=MICROSERVICE_URL=https://cdf19.twread.ne
 | nginx | BSD-2-Clause |
 | cloudflared | Apache-2.0（Cloudflare Tunnel 免費方案） |
 | flutter_tts（App 端 TTS） | MIT |
+| flutter_onnxruntime（App 端台語 VITS 推論） | MIT |
+| audioplayers（App 端台語音檔播放） | MIT |
+| pygoruut 0.6.3（僅筆電 build-time 音標轉換，未進 App） | 見 PyPI（開源） |
 | TownPass 本體 | GPL-3.0（本作品整體以 AGPL-3.0 釋出，見 LICENSE） |
+
+## 台語 TTS 模型揭露
+
+- 模型：`neurlang/coqui-vits-suisiann-minnan-hokkien`（VITS，22050 Hz），
+  由團隊匯出為 ONNX（`onnx_out/model.onnx`，114MB，不進版控；
+  詳見 `senior-card/taigi/TAIGI_MODEL_NOTICE.md`）。
+- 授權：**CC-BY-SA-4.0**（模型檔維持 BY-SA，署名如上）。
+- 執行方式：**裝置端 onnxruntime 推論**，無雲端/遠端模型呼叫；
+  音標由 build-time 預算（venues_taigi.db＋前端碎片），執行期零聯網。
+- 模型檔大於 GitHub 單檔上限：`fetch_model.sh` 在 build 前抓入
+  `assets/models/taigi-vits/`（預設讀 repo 根 `onnx_out/`）。
 
 ## AI 使用聲明
 
 - 開發階段：有使用雲端 AI 工具協助撰寫程式與文件（競賽允許）。
-- 執行階段：**未使用任何 AI 推論**（無 LLM、無雲端模型呼叫）。
+- 執行階段：**未使用 LLM 推論**（無雲端模型呼叫）。
   語音朗讀使用裝置內建 TTS 引擎（Android TextToSpeech / iOS AVSpeech），
-  非 AI 推論。
+  台語語音使用裝置端 VITS 聲學模型（onnxruntime，見上）；
+  皆於手機上完成，非雲端 AI 推論。
 
 ## Demo 流程（2 分鐘）
 

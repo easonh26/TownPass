@@ -64,6 +64,55 @@ function pickZhVoice(): SpeechSynthesisVoice | null {
 
 export function useTts() {
   const supported = ref(true);
+  const taigiSupported = ref(true);
+
+  /**
+   * Speak precomputed Taigi phonemes via the native VITS engine.
+   * Polls taigi_check while the model is still loading (up to ~60s);
+   * returns false only on definitive failure so the caller can fall back.
+   */
+  async function speakTaigi(phonemes: string, onWaiting?: () => void): Promise<boolean> {
+    const p = phonemes.trim();
+    if (!p) return false;
+    if (!isInApp()) {
+      taigiSupported.value = false;
+      return false;
+    }
+    const deadline = Date.now() + 60000;
+    let notified = false;
+    for (;;) {
+      let r: { available?: boolean; status?: string } | null = null;
+      try {
+        r = await callNative<{ available?: boolean; status?: string }>('taigi_check', null, 8000);
+        console.log('[taigi] check:', JSON.stringify(r));
+      } catch (e) {
+        console.log('[taigi] check threw:', e instanceof Error ? e.message : e);
+        return false;
+      }
+      if (r && r.available === true) break;
+      if (!r || r.status === 'unavailable') {
+        taigiSupported.value = false;
+        return false;
+      }
+      // status idle|loading: model still warming up.
+      if (!notified) {
+        notified = true;
+        onWaiting?.();
+      }
+      if (Date.now() >= deadline) return false;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    try {
+      console.log('[taigi] speak sending', p.length, 'chars');
+      const res = await callNative<TtsSpeakResult>('taigi_speak', { phonemes: p }, 10 * 60 * 1000);
+      console.log('[taigi] speak result:', JSON.stringify(res));
+      return res === 'done' || res === 'stopped';
+    } catch (e) {
+      // Speech was interrupted or failed; caller falls back to Mandarin.
+      console.log('[taigi] speak threw:', e instanceof Error ? e.message : e);
+      return false;
+    }
+  }
 
   async function speak(text: string): Promise<void> {
     const trimmed = text.trim();
@@ -91,6 +140,7 @@ export function useTts() {
   }
 
   function stop(): void {
+    postNative('taigi_stop', null);
     if (engine === 'native') {
       postNative('tts_stop', null);
     } else if (engine === 'web' && 'speechSynthesis' in window) {
@@ -98,5 +148,5 @@ export function useTts() {
     }
   }
 
-  return { speak, stop, supported, isInApp };
+  return { speak, speakTaigi, stop, supported, taigiSupported, isInApp };
 }

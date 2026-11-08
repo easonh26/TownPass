@@ -19,13 +19,13 @@
         <button
           type="button"
           class="voice-toggle"
-          :class="{ on: store.voiceOn }"
-          :aria-pressed="store.voiceOn"
+          :class="{ on: store.voiceLang !== 'off' }"
+          :aria-pressed="store.voiceLang !== 'off'"
           aria-label="語音朗讀開關"
           @click="toggleVoice"
         >
-          <span class="toggle-icon" aria-hidden="true" v-html="store.voiceOn ? iconVoiceOn : iconVoiceOff"></span>
-          <span class="toggle-label">語音朗讀：{{ store.voiceOn ? '開' : '關' }}</span>
+          <span class="toggle-icon" aria-hidden="true" v-html="store.voiceLang === 'off' ? iconVoiceOff : iconVoiceOn"></span>
+          <span class="toggle-label">語音朗讀：{{ langLabel }}</span>
         </button>
 
         <div class="grid" role="group" aria-label="交通工具">
@@ -50,11 +50,12 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { ensureLocation, locationState, retryLocation } from '../locationState';
-import { go, persistVoiceDefault, store, type TransportName } from '../store';
-import { useTts } from '../composables/useTts';
-import { transportPrompt, voiceOnConfirmed } from '../voice/scripts';
+import { go, persistVoiceDefault, store, type TransportName, type VoiceLang } from '../store';
+import { useVoice } from '../composables/useVoice';
+import { transportPrompt } from '../voice/scripts';
+import { confirmTaigi, transportPromptTaigi } from '../voice/taigi';
 
 // Side-view bus: long body, beltline, two wheels.
 const BUS_ICON =
@@ -84,7 +85,13 @@ const iconVoiceOn =
 const iconVoiceOff =
   '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5 6 9H3v6h3l5 4V5z" /><path stroke-linecap="round" stroke-linejoin="round" d="m22 9-6 6M16 9l6 6" /></svg>';
 
-const { speak, stop } = useTts();
+const { say, stop } = useVoice();
+
+const langLabel = computed(() =>
+  store.voiceLang === 'taigi' ? '台語' : store.voiceLang === 'mandarin' ? '國語' : '關',
+);
+
+const LANG_CYCLE: VoiceLang[] = ['off', 'mandarin', 'taigi'];
 
 function pick(name: TransportName): void {
   stop();
@@ -105,20 +112,25 @@ function backToCategories(): void {
 }
 
 async function toggleVoice(): Promise<void> {
-  const on = !store.voiceOn;
-  store.voiceOn = on;
-  persistVoiceDefault(on);
-  if (!on) {
+  const next = LANG_CYCLE[(LANG_CYCLE.indexOf(store.voiceLang) + 1) % LANG_CYCLE.length]!;
+  stop();
+  store.voiceLang = next;
+  persistVoiceDefault(next);
+  if (next === 'off') {
     stop();
     return;
   }
-  await speak(`${voiceOnConfirmed()}。${transportPrompt()}`);
+  if (next === 'taigi') {
+    await say(transportPrompt(), `${confirmTaigi()} ${transportPromptTaigi()}`);
+    return;
+  }
+  await say(transportPrompt(), null);
 }
 
 onMounted(() => {
   if (locationState.status === 'idle') void ensureLocation();
-  if (store.voiceOn) {
-    void speak(transportPrompt());
+  if (store.voiceLang !== 'off') {
+    void say(transportPrompt(), store.voiceLang === 'taigi' ? transportPromptTaigi() : null);
   }
 });
 

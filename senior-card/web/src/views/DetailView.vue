@@ -76,9 +76,10 @@ import { apiErrorMessage, fetchPlace } from '../api/client';
 import { isInApp, postNative } from '../bridge/native';
 import { locationState } from '../locationState';
 import { go, store } from '../store';
-import { useTts } from '../composables/useTts';
+import { useVoice } from '../composables/useVoice';
 import { formatDistance } from '../utils/format';
 import { detailSummary, loadFailed } from '../voice/scripts';
+import { detailSummaryTaigi, loadFailedTaigi } from '../voice/taigi';
 import type { PlaceDetail } from '../bridge/types';
 
 const BENEFITS_PER_PAGE = 2;
@@ -90,7 +91,15 @@ const errorMessage = ref('');
 const place = ref<PlaceDetail | null>(null);
 const textPage = ref(0);
 
-const { speak, stop } = useTts();
+const { say, stop } = useVoice();
+
+const wantTaigi = computed(() => store.voiceLang === 'taigi');
+
+const textPageBenefitPhonemes = computed(() => {
+  const all = place.value?.benefitsPhonemes ?? null;
+  if (!all || all.length !== (place.value?.benefits.length ?? -1)) return null;
+  return all.slice(textPage.value * BENEFITS_PER_PAGE, textPage.value * BENEFITS_PER_PAGE + BENEFITS_PER_PAGE);
+});
 
 const totalTextPages = computed(() =>
   Math.max(1, Math.ceil((place.value?.benefits.length ?? 0) / BENEFITS_PER_PAGE)),
@@ -145,9 +154,26 @@ function nextTextPage(): void {
 
 function speakCurrentPage(): void {
   const p = place.value;
-  if (!store.voiceOn || !p) return;
-  void speak(detailSummary(p, textPageItems.value, textPage.value));
+  if (store.voiceLang === 'off' || !p) return;
+  const taigi =
+    wantTaigi.value && p.namePhonemes && textPageBenefitPhonemes.value
+      ? detailSummaryTaigi(
+          p.namePhonemes,
+          textPageBenefitPhonemes.value,
+          textPage.value,
+          p.distanceMeters,
+          p.points,
+        )
+      : null;
+  void say(detailSummary(p, textPageItems.value, textPage.value), taigi);
 }
+
+async function loadDetail(lang: 'taigi' | null): Promise<PlaceDetail> {
+  const pos = locationState.position;
+  return fetchPlace(store.placeId!, pos ? pos.latitude : null, pos ? pos.longitude : null, lang);
+}
+
+let alive = true;
 
 async function load(): Promise<void> {
   state.value = 'loading';
@@ -155,22 +181,31 @@ async function load(): Promise<void> {
     go('list');
     return;
   }
+  let detail: PlaceDetail;
   try {
-    const pos = locationState.position;
-    const detail = await fetchPlace(
-      store.placeId,
-      pos ? pos.latitude : null,
-      pos ? pos.longitude : null,
-    );
-    place.value = detail;
-    textPage.value = 0;
-    state.value = 'ready';
-    speakCurrentPage();
+    detail = await loadDetail(wantTaigi.value ? 'taigi' : null);
   } catch (e) {
-    errorMessage.value = apiErrorMessage(e);
-    state.value = 'error';
-    if (store.voiceOn) void speak(loadFailed());
+    if (!wantTaigi.value) {
+      errorMessage.value = apiErrorMessage(e);
+      state.value = 'error';
+      if (store.voiceLang !== 'off') void say(loadFailed(), loadFailedTaigi());
+      return;
+    }
+    // Taigi backend unavailable: fall back to Mandarin data.
+    try {
+      detail = await loadDetail(null);
+    } catch (e2) {
+      errorMessage.value = apiErrorMessage(e2);
+      state.value = 'error';
+      if (store.voiceLang !== 'off') void say(loadFailed(), loadFailedTaigi());
+      return;
+    }
   }
+  if (!alive) return;
+  place.value = detail;
+  textPage.value = 0;
+  state.value = 'ready';
+  speakCurrentPage();
 }
 
 function reload(): void {
@@ -183,6 +218,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  alive = false;
   stop();
 });
 </script>

@@ -33,6 +33,7 @@ export function fetchPlaces(
   lng: number,
   limit = 20,
   subcategory?: string | null,
+  lang?: 'taigi' | null,
 ): Promise<PlacesResponse> {
   const params = new URLSearchParams({
     category,
@@ -41,15 +42,22 @@ export function fetchPlaces(
     limit: String(limit),
   });
   if (subcategory) params.set('subcategory', subcategory);
+  if (lang) params.set('lang', lang);
   return getJson<PlacesResponse>(`/places?${params.toString()}`);
 }
 
-export function fetchPlace(id: string, lat: number | null, lng: number | null): Promise<PlaceDetail> {
+export function fetchPlace(
+  id: string,
+  lat: number | null,
+  lng: number | null,
+  lang?: 'taigi' | null,
+): Promise<PlaceDetail> {
   const params = new URLSearchParams();
   if (lat !== null && lng !== null) {
     params.set('lat', String(lat));
     params.set('lng', String(lng));
   }
+  if (lang) params.set('lang', lang);
   const query = params.toString();
   return getJson<PlaceDetail>(`/places/${encodeURIComponent(id)}${query ? `?${query}` : ''}`);
 }

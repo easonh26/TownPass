@@ -46,8 +46,9 @@ public static class Geo
 public sealed class VenuesRepository
 {
     private readonly string _connectionString;
+    private readonly bool _phonemes;
 
-    public VenuesRepository(string dbPath)
+    public VenuesRepository(string dbPath, bool includePhonemes = false)
     {
         _connectionString = new SqliteConnectionStringBuilder
         {
@@ -55,7 +56,11 @@ public sealed class VenuesRepository
             Mode = SqliteOpenMode.ReadOnly,
             Cache = SqliteCacheMode.Shared,
         }.ToString();
+        _phonemes = includePhonemes;
     }
+
+    private string SelectColumns =>
+        _phonemes ? $"{Columns}, name_phonemes, discount_phonemes" : Columns;
 
     public bool CanConnect()
     {
@@ -84,10 +89,17 @@ public sealed class VenuesRepository
         cmd.Parameters.AddWithValue("$lngMax", lng + dLng);
     }
 
-    private static Venue ReadVenue(SqliteDataReader r) => new(
-        r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3),
-        r.GetDouble(4), r.GetDouble(5), r.GetString(6),
-        r.GetInt32(7), r.GetString(8));
+    private Venue ReadVenue(SqliteDataReader r) => _phonemes
+        ? new(
+            r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3),
+            r.GetDouble(4), r.GetDouble(5), r.GetString(6),
+            r.GetInt32(7), r.GetString(8),
+            r.IsDBNull(9) ? null : r.GetString(9),
+            r.IsDBNull(10) ? null : r.GetString(10))
+        : new(
+            r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3),
+            r.GetDouble(4), r.GetDouble(5), r.GetString(6),
+            r.GetInt32(7), r.GetString(8));
 
     private const string Columns =
         "id, name, category, address, lat, lng, discount_info, points_deducted, main_category";
@@ -100,7 +112,7 @@ public sealed class VenuesRepository
         conn.Open();
         using var cmd = conn.CreateCommand();
         var sql =
-            $"SELECT {Columns} FROM venues WHERE main_category = $cat ";
+            $"SELECT {SelectColumns} FROM venues WHERE main_category = $cat ";
         if (subcategories is { Count: > 0 })
         {
             var names = string.Join(", ", subcategories.Select((_, i) => $"$sub{i}"));
@@ -123,7 +135,7 @@ public sealed class VenuesRepository
         using var conn = new SqliteConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT {Columns} FROM venues WHERE id = $id LIMIT 1";
+        cmd.CommandText = $"SELECT {SelectColumns} FROM venues WHERE id = $id LIMIT 1";
         cmd.Parameters.AddWithValue("$id", id);
         using var reader = cmd.ExecuteReader();
         return reader.Read() ? ReadVenue(reader) : null;
@@ -167,4 +179,13 @@ public sealed class VenuesRepository
             .Split('。', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(s => s + '。')
             .ToList();
+
+    // Phoneme strings use '.' as the sentence separator (1:1 with Han 。).
+    public static List<string>? SplitPhonemeBenefits(string? discountPhonemes) =>
+        discountPhonemes is null
+            ? null
+            : discountPhonemes
+                .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => s + '.')
+                .ToList();
 }

@@ -11,7 +11,9 @@ public sealed record Venue(
     double Lng,
     string DiscountInfo,
     int Points,
-    string MainCategory
+    string MainCategory,
+    string? NamePhonemes = null,
+    string? DiscountPhonemes = null
 );
 
 public sealed record PlaceItem(
@@ -23,7 +25,8 @@ public sealed record PlaceItem(
     double Lng,
     int Points,
     string DiscountInfo,
-    double? DistanceMeters
+    double? DistanceMeters,
+    string? NamePhonemes = null
 );
 
 public sealed record PlacesResponse(int RadiusMeters, IReadOnlyList<PlaceItem> Items);
@@ -38,5 +41,7 @@ public sealed record PlaceDetail(
     int Points,
     string DiscountInfo,
     double? DistanceMeters,
-    IReadOnlyList<string> Benefits
+    IReadOnlyList<string> Benefits,
+    string? NamePhonemes = null,
+    IReadOnlyList<string>? BenefitsPhonemes = null
 );

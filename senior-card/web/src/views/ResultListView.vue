@@ -72,10 +72,18 @@ import PagerFooter from '../components/PagerFooter.vue';
 import { apiErrorMessage, fetchPlaces } from '../api/client';
 import { ensureLocation, locationState } from '../locationState';
 import { go, store } from '../store';
-import { useTts } from '../composables/useTts';
+import { useVoice } from '../composables/useVoice';
 import { formatDistance, formatRadius } from '../utils/format';
 import { listEmpty, listPageAnnouncement, listSummary, loadFailed, locationFailed } from '../voice/scripts';
-import type { PlaceItem } from '../bridge/types';
+import {
+  listEmptyTaigi,
+  listPageAnnouncementTaigi,
+  listSummaryTaigi,
+  loadFailedTaigi,
+  locationFailedTaigi,
+  type TaigiListItem,
+} from '../voice/taigi';
+import type { PlaceItem, PlacesResponse } from '../bridge/types';
 
 type State = 'loading' | 'location-failed' | 'error' | 'empty' | 'ready';
 
@@ -87,7 +95,17 @@ const radiusMeters = ref(1000);
 const items = ref<PlaceItem[]>([]);
 const totalCount = ref(0);
 
-const { speak, stop } = useTts();
+const { say, stop } = useVoice();
+
+const wantTaigi = computed(() => store.voiceLang === 'taigi');
+
+function toTaigiItems(list: PlaceItem[]): TaigiListItem[] {
+  return list.map((x) => ({
+    namePhon: x.namePhonemes ?? '',
+    distanceMeters: x.distanceMeters,
+    points: x.points,
+  }));
+}
 
 const totalPages = computed(() => Math.max(1, Math.ceil(items.value.length / PAGE_SIZE)));
 
@@ -133,12 +151,20 @@ function nextPage(): void {
   }
 }
 
+/** Whole-utterance Taigi only when every item on the page has phonemes. */
+function pageTaigi(page: PlaceItem[], make: (items: TaigiListItem[]) => string): string | null {
+  if (!wantTaigi.value || page.some((x) => !x.namePhonemes)) return null;
+  return make(toTaigiItems(page));
+}
+
 function speakCurrentPage(): void {
-  if (!store.voiceOn || items.value.length === 0) return;
+  if (store.voiceLang === 'off' || items.value.length === 0) return;
   const text = listPageAnnouncement(store.listPage, pageItems.value, PAGE_SIZE);
   if (!text) return;
-  void speak(text);
+  void say(text, pageTaigi(pageItems.value, (t) => listPageAnnouncementTaigi(store.listPage, t, PAGE_SIZE)));
 }
+
+let alive = true;
 
 async function load(): Promise<void> {
   state.value = 'loading';
@@ -149,35 +175,63 @@ async function load(): Promise<void> {
   const ok = await ensureLocation();
   if (!ok || !locationState.position) {
     state.value = 'location-failed';
-    if (store.voiceOn) void speak(locationFailed());
+    if (store.voiceLang !== 'off') void say(locationFailed(), locationFailedTaigi());
     return;
   }
-  try {
-    const res = await fetchPlaces(
-      store.category,
-      locationState.position.latitude,
-      locationState.position.longitude,
+  async function query(lang: 'taigi' | null): Promise<PlacesResponse> {
+    return fetchPlaces(
+      store.category!,
+      locationState.position!.latitude,
+      locationState.position!.longitude,
       20,
       store.category === '交通' ? store.transport : null,
+      lang,
     );
+  }
+  let res: PlacesResponse;
+  try {
+    res = await query(wantTaigi.value ? 'taigi' : null);
+  } catch (e) {
+    if (!wantTaigi.value) {
+      errorMessage.value = apiErrorMessage(e);
+      state.value = 'error';
+      if (store.voiceLang !== 'off') void say(loadFailed(), loadFailedTaigi());
+      return;
+    }
+    // Taigi backend unavailable: fall back to Mandarin data (speech falls back too).
+    try {
+      res = await query(null);
+    } catch (e2) {
+      errorMessage.value = apiErrorMessage(e2);
+      state.value = 'error';
+      if (store.voiceLang !== 'off') void say(loadFailed(), loadFailedTaigi());
+      return;
+    }
+  }
+  {
+    if (!alive) return;
     radiusMeters.value = res.radiusMeters;
     items.value = res.items;
     totalCount.value = res.items.length;
     if (res.items.length === 0) {
       state.value = 'empty';
-      if (store.voiceOn) void speak(listEmpty(listLabel.value));
+      if (store.voiceLang !== 'off') void say(listEmpty(listLabel.value), listEmptyTaigi(listLabel.value));
       return;
     }
     state.value = 'ready';
-    if (store.voiceOn) {
-      void speak(listSummary(totalCount.value, listLabel.value, res.items, PAGE_SIZE));
+    if (store.voiceLang !== 'off') {
+      const firstPage = res.items.slice(0, PAGE_SIZE);
+      void say(
+        listSummary(totalCount.value, listLabel.value, res.items, PAGE_SIZE),
+        pageTaigi(firstPage, (t) => listSummaryTaigi(totalCount.value, listLabel.value, t, PAGE_SIZE)),
+      );
     }
-  } catch (e) {
-    errorMessage.value = apiErrorMessage(e);
-    state.value = 'error';
-    if (store.voiceOn) void speak(loadFailed());
   }
 }
+
+onBeforeUnmount(() => {
+  alive = false;
+});
 
 function reload(): void {
   stop();

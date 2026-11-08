@@ -17,9 +17,11 @@ COPY --from=build /app/publish ./
 # venues.db is counselled read-only; copied with app ownership so the
 # non-root `app` user can open it. The file itself is never modified.
 COPY data/venues.db /app/data/venues.db
-RUN chown app:app /app/data/venues.db
+COPY data/venues_taigi.db /app/data/venues_taigi.db
+RUN chown app:app /app/data/venues.db /app/data/venues_taigi.db
 USER app
 ENV ASPNETCORE_URLS=http://+:8080 \
-    VENUES_DB_PATH=/app/data/venues.db
+    VENUES_DB_PATH=/app/data/venues.db \
+    TAIGI_DB_PATH=/app/data/venues_taigi.db
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "SeniorCard.Api.dll"]

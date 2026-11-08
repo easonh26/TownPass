@@ -21,6 +21,7 @@ DB 無法開啟時回 503。
 | `lng` | 是 | 經度（-180～180） |
 | `limit` | 否 | 預設 20，上限 50 |
 | `subcategory` | 否 | 僅 `category=交通` 有效：`公車` / `捷運`（含機場捷運）/ `臺鐵` / `貓空纜車` |
+| `lang` | 否 | `taigi` 時查台語庫，回傳加 `namePhonemes`（`places/{id}` 另加 `benefitsPhonemes`）；缺台語庫 → 503 |
 
 演算法：SQL bounding-box 粗篩 → C# Haversine 精算排序 →
 半徑自動擴張（0.5 → 1 → 2 → 5 → 10 km）→ 同站名 300m 內合併。

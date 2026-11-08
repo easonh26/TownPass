@@ -7,6 +7,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/service/senior_tts_service.dart';
+import 'package:town_pass/service/taigi_tts_service.dart';
 import 'package:town_pass/util/tp_app_bar.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/web_message_handler/tp_web_message_listener.dart';
@@ -58,6 +59,7 @@ class _TPWebViewState extends State<TPWebView> {
     // Stop senior-card TTS: closing the WebView destroys the page before its
     // JS stop() can run, otherwise speech plays on until the utterance ends.
     SeniorTtsService.stop();
+    TaigiTtsService.stop();
     super.dispose();
   }
 
@@ -102,6 +104,9 @@ class _TPWebViewState extends State<TPWebView> {
         },
         onUpdateVisitedHistory: (_, __, ___) async {
           canGoBack.value = await webViewController.value?.canGoBack() ?? false;
+        },
+        onConsoleMessage: (_, consoleMessage) {
+          debugPrint('[web-console] ${consoleMessage.message}');
         },
         onTitleChanged: (_, title) {
           appBarController.title.value = switch (forceTitle == null) {

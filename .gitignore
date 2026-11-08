@@ -19,6 +19,13 @@ migrate_working_dir/
 # Design-draft HTML + source DB copies (repo-root only): kept locally only.
 /ref/
 
+# Taigi VITS model + tokens (114MB, exceeds GitHub file limit): fetched at
+# build time via senior-card/taigi/fetch_model.sh, never committed.
+/assets/models/
+
+# Local Taigi model source dir (large .onnx; see above).
+/onnx_out/
+
 # IntelliJ related
 *.iml
 *.ipr

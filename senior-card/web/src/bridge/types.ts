@@ -37,6 +37,7 @@ export interface PlaceItem {
   points: number;
   discountInfo: string;
   distanceMeters: number | null;
+  namePhonemes?: string | null;
 }
 
 export interface PlacesResponse {
@@ -46,6 +47,7 @@ export interface PlacesResponse {
 
 export interface PlaceDetail extends PlaceItem {
   benefits: string[];
+  benefitsPhonemes?: string[] | null;
 }
 
 export type CategoryName = '交通' | '娛樂' | '運動' | '醫療';
