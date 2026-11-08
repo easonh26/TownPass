@@ -15,7 +15,13 @@
 
 *   **在地化離線資料庫 (`venues.db`)**：
     *   透過 Python 腳本動態與手動混合作業，將各類場館與交通節點轉換為 `venues.db` SQLite 檔案。
-    
+*   **敬老卡點數與優惠地圖**：
+使用 TypeScript 、OpenStreetMap 與 Leaflet 建立互動地圖，整合敬老卡適用場館、地理位置及優惠資訊。
+*   **高齡友善語音朗讀(國語、台語)**：
+使用 Web Speech API 實作文字轉語音功能，以及使用 Coqui VITS SuíSiann 模型，將台羅拼音作為輸入腳本進行文字轉語音輸出 ，協助長者理解資訊。
+*   **臺北通原生整合**：
+透過 window.flutterObject.postMessage 實現 Web 與 Flutter App 的雙向訊息交換。
+
 
 *   使用 Vue 3 建立互動介面，透過 Flutter WebView 與臺北通 App 進行資料交換。
 
@@ -24,7 +30,6 @@
 *   使用 Web Speech API 實作文字轉語音功能，協助長者理解資訊。
 *   採用 Vue 3 + Vite + TS 建立響應式介面原型。
 
-*   使用 Vite 進行前端建置，搭配 Vitest、Testing Library 進行功能測試。
 
 
 ## 系統架構與技術棧 
